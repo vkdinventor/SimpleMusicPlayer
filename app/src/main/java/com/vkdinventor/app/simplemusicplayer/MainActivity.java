@@ -6,21 +6,28 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.database.Cursor;
-import android.media.MediaDataSource;
 import android.net.Uri;
 import android.os.IBinder;
 import android.provider.MediaStore;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.support.v7.widget.LinearLayoutManager;
+import android.support.v7.widget.RecyclerView;
+import android.support.v7.widget.Toolbar;
 import android.util.Log;
+import android.widget.Toast;
 
 import java.util.ArrayList;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements RecyclerViewAdapter.OnItemClickListner{
 
     private MediaPlayerService player;
     boolean serviceBound = false;
-    ArrayList<Audio> audioList;
+    private ArrayList<Audio> audioList;
+    private RecyclerViewAdapter recyclerViewAdapter;
+    private RecyclerView recyclerView;
+    private Toolbar toolbar;
+
     public static final String Broadcast_PLAY_NEW_AUDIO = "com.vkdinventor.app.simplemusicplayer.PlayNewAudeo";
 
     private ServiceConnection serviceConnection = new ServiceConnection() {
@@ -43,7 +50,10 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        toolbar = findViewById(R.id.toolbar);
+///        setSupportActionBar(toolbar);
         loadAudio();
+        setupRecycleView();
         playAudio(6);
     }
 
@@ -71,6 +81,15 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    void setupRecycleView(){
+        recyclerView = findViewById(R.id.recyclerview);
+        RecyclerView.LayoutManager layoutManager = new LinearLayoutManager(this,LinearLayoutManager.VERTICAL,false);
+        recyclerView.setLayoutManager(layoutManager);
+        recyclerViewAdapter = new RecyclerViewAdapter(audioList,this);
+        recyclerViewAdapter.setOnItemClickListner(this);
+        recyclerView.setAdapter(recyclerViewAdapter);
+    }
+
     private void playAudio(int index) {
         //Check is service is active
         if (!serviceBound) {
@@ -79,14 +98,14 @@ public class MainActivity extends AppCompatActivity {
             playerIntent.putExtra("currentIndex", index);
             startService(playerIntent);
             bindService(playerIntent, serviceConnection, Context.BIND_AUTO_CREATE);
-            LogUtil.v("Service is bound: "+index);
         } else {
             //Service is active
             //Send media with BroadcastReceiver
             Intent broadcastIntent = new Intent(Broadcast_PLAY_NEW_AUDIO);
+            broadcastIntent.putExtra("currentIndex", index);
             sendBroadcast(broadcastIntent);
-            LogUtil.v("Service is not bound: "+index);
         }
+        LogUtil.v("is Service  bound: "+serviceBound);
     }
 
     @Override
@@ -110,8 +129,13 @@ public class MainActivity extends AppCompatActivity {
         if (serviceBound) {
             unbindService(serviceConnection);
             //service is active
-            player.stopSelf();
         }
     }
 
+    @Override
+    public void onItemClicked(int position) {
+        playAudio(position);
+        Toast.makeText(this, "Loading...", Toast.LENGTH_SHORT).show();
+        toolbar.setTitle(audioList.get(position).getTitle());
+    }
 }

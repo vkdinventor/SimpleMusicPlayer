@@ -404,8 +404,7 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnComplet
 
             //Get the new media index form SharedPreferences
             audioIndex = intent.getIntExtra("currentIndex", 0);
-            audioList = intent.getParcelableArrayListExtra("media");
-            if (audioIndex != -1 && audioIndex < audioList.size()) {
+            if (audioIndex >= 0 && audioIndex < audioList.size()) {
                 //index is in a valid range
                 activeAudio = audioList.get(audioIndex);
             } else {
