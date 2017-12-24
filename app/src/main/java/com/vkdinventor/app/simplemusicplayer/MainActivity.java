@@ -9,6 +9,7 @@ import android.database.Cursor;
 import android.net.Uri;
 import android.os.IBinder;
 import android.provider.MediaStore;
+import android.support.design.widget.CollapsingToolbarLayout;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.support.v7.widget.LinearLayoutManager;
@@ -39,6 +40,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private TextView currentTime;
     private TextView totalTime;
     private SeekBar seekBar;
+    private CollapsingToolbarLayout collapsingToolbarLayout;
     public static int currentIndex;
 
     public static final String Broadcast_PLAY_NEW_AUDIO = "com.vkdinventor.app.simplemusicplayer.PlayNewAudeo";
@@ -64,6 +66,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         toolbar = findViewById(R.id.toolbar);
+        collapsingToolbarLayout = findViewById(R.id.toolbar_layout);
         previewThumbnail = findViewById(R.id.collapsingImageView);
         buttonNext = findViewById(R.id.nextBtn);
         buttonPlayPause = findViewById(R.id.playPauseBtn);
@@ -207,6 +210,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         playAudio();
         Toast.makeText(this, "Loading...", Toast.LENGTH_SHORT).show();
         toolbar.setTitle(audioList.get(position).getTitle());
+        collapsingToolbarLayout.setTitle(audioList.get(position).getTitle());
         previewThumbnail.setImageBitmap(Utils.getThumbnail(audioList.get(position).getData()));
     }
 }
