@@ -18,13 +18,12 @@
             android:id="@+id/play_pause"
             android:layout_width="45dp"
             android:layout_height="45dp"
-            android:src="@android:drawable/ic_media_play"
+            android:src="@android:drawable/stat_sys_headset"
             android:layout_gravity="center_vertical"
-            android:tint="@color/colorAccent"
             android:foregroundGravity="center_vertical"
             android:layout_marginLeft="4dp"
             android:layout_marginRight="8dp"
-            android:backgroundTint="@color/colorPrimary" />
+            android:background="@color/colorPrimary" />
 
         <TextView
             android:id="@+id/title"

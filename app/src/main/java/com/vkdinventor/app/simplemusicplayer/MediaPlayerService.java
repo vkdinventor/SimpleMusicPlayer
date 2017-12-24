@@ -1,7 +1,5 @@
 package com.vkdinventor.app.simplemusicplayer;
 
-import android.app.NotificationManager;
-import android.app.PendingIntent;
 import android.app.Service;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -26,6 +24,8 @@ import android.util.Log;
 
 import java.io.IOException;
 import java.util.ArrayList;
+
+import com.vkdinventor.app.simplemusicplayer.MediaController;
 
 /**
  * Created by vikash on 21-12-2017.
@@ -53,20 +53,10 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnComplet
     private ArrayList<Audio> audioList;
     private int audioIndex = -1;
     private Audio activeAudio; //an object of the currently playing audio
-
-    public static final String ACTION_PLAY = "com.vkdinventor.app.simplemusicplayer.ACTION_PLAY";
-    public static final String ACTION_PAUSE = "com.vkdinventor.app.simplemusicplayer.ACTION_PAUSE";
-    public static final String ACTION_PREVIOUS = "com.vkdinventor.app.simplemusicplayer.ACTION_PREVIOUS";
-    public static final String ACTION_NEXT = "com.vkdinventor.app.simplemusicplayer.ACTION_NEXT";
-    public static final String ACTION_STOP = "com.vkdinventor.app.simplemusicplayer.ACTION_STOP";
-
     //MediaSession
     private MediaSessionManager mediaSessionManager;
     private MediaSessionCompat mediaSession;
     private MediaControllerCompat.TransportControls transportControls;
-
-    //AudioPlayer notification ID
-    private static final int NOTIFICATION_ID = 101;
 
     @Override
     public void onCreate() {
@@ -108,7 +98,7 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnComplet
                 e.printStackTrace();
                 stopSelf();
             }
-            buildNotification(PlaybackStatus.PLAYING);
+            MediaController.buildNotification(this,activeAudio,PlaybackStatus.PLAYING);
         }
         handleIncomingActions(intent);
         return super.onStartCommand(intent, flags, startId);
@@ -163,6 +153,7 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnComplet
             mediaPlayer.pause();
             resumePosition = mediaPlayer.getCurrentPosition();
         }
+        MediaController.buildNotification(getApplicationContext(),activeAudio,PlaybackStatus.PAUSED);
     }
 
     private void resumeMedia() {
@@ -170,6 +161,7 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnComplet
             mediaPlayer.seekTo(resumePosition);
             mediaPlayer.start();
         }
+        MediaController.buildNotification(getApplicationContext(),activeAudio,PlaybackStatus.PLAYING);
     }
 
     private boolean requestAudioFocus() {
@@ -256,7 +248,6 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnComplet
     public void onPrepared(MediaPlayer mp) {
         LogUtil.v("Media Player prepared: ");
         playMedia();
-
     }
 
     @Override
@@ -277,7 +268,6 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnComplet
         public void onReceive(Context context, Intent intent) {
             //pause audio on ACTION_AUDIO_BECOMING_NOISY
             pauseMedia();
-            buildNotification(PlaybackStatus.PAUSED);
         }
     };
 
@@ -287,80 +277,7 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnComplet
         registerReceiver(becomingNoisyReceiver, intentFilter);
     }
 
-    private void buildNotification(PlaybackStatus playbackStatus) {
-        int notificationAction = android.R.drawable.ic_media_pause;//needs to be initialized
-        PendingIntent play_pauseAction = null;
 
-        //Build a new notification according to the current state of the MediaPlayer
-        if (playbackStatus == PlaybackStatus.PLAYING) {
-            notificationAction = android.R.drawable.ic_media_pause;
-            //create the pause action
-            play_pauseAction = playbackAction(1);
-        } else if (playbackStatus == PlaybackStatus.PAUSED) {
-            notificationAction = android.R.drawable.ic_media_play;
-            //create the play action
-            play_pauseAction = playbackAction(0);
-        }
-
-        Bitmap largeIcon = BitmapFactory.decodeResource(getResources(),
-                R.drawable.ic_launcher_foreground); //replace with your own image
-
-        // Create a new Notification
-        NotificationCompat.Builder notificationBuilder = (NotificationCompat.Builder) new NotificationCompat.Builder(this)
-                .setShowWhen(false)
-                // Set the Notification style
-                .setStyle(new NotificationCompat.MediaStyle()
-                        // Attach our MediaSession token
-                        .setMediaSession(mediaSession.getSessionToken())
-                        // Show our playback controls in the compact notification view.
-                        .setShowActionsInCompactView(0, 1, 2))
-                // Set the Notification color
-                .setColor(getResources().getColor(R.color.colorPrimary))
-                // Set the large and small icons
-                .setLargeIcon(largeIcon)
-                .setSmallIcon(android.R.drawable.stat_sys_headset)
-                // Set Notification content information
-                .setContentText(activeAudio.getArtist())
-                .setContentTitle(activeAudio.getTitle())
-                .setContentInfo(activeAudio.getAlbum())
-                // Add playback actions
-                .addAction(android.R.drawable.ic_media_previous, "previous", playbackAction(3))
-                .addAction(notificationAction, "pause", play_pauseAction)
-                .addAction(android.R.drawable.ic_media_next, "next", playbackAction(2));
-
-        ((NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE)).notify(NOTIFICATION_ID, notificationBuilder.build());
-
-    }
-
-    private void removeNotification() {
-        NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-        notificationManager.cancel(NOTIFICATION_ID);
-    }
-
-    private PendingIntent playbackAction(int actionNumber) {
-        Intent playbackAction = new Intent(this, MediaPlayerService.class);
-        switch (actionNumber) {
-            case 0:
-                // Play
-                playbackAction.setAction(ACTION_PLAY);
-                return PendingIntent.getService(this, actionNumber, playbackAction, 0);
-            case 1:
-                // Pause
-                playbackAction.setAction(ACTION_PAUSE);
-                return PendingIntent.getService(this, actionNumber, playbackAction, 0);
-            case 2:
-                // Next track
-                playbackAction.setAction(ACTION_NEXT);
-                return PendingIntent.getService(this, actionNumber, playbackAction, 0);
-            case 3:
-                // Previous track
-                playbackAction.setAction(ACTION_PREVIOUS);
-                return PendingIntent.getService(this, actionNumber, playbackAction, 0);
-            default:
-                break;
-        }
-        return null;
-    }
 
     //Handle incoming phone calls
     private void callStateListener() {
@@ -417,9 +334,21 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnComplet
             mediaPlayer.reset();
             initMediaPlayer();
             updateMetaData();
-            buildNotification(PlaybackStatus.PLAYING);
+            MediaController.buildNotification(context,activeAudio,PlaybackStatus.PLAYING);
         }
     };
+
+    public boolean playPause(){
+        if (mediaPlayer != null ){
+            if (mediaPlayer.isPlaying()){
+                pauseMedia();
+            }else {
+                playMedia();
+            }
+            return mediaPlayer.isPlaying();
+        }
+        return false;
+    }
 
     private void register_playNewAudio() {
         //Register playNewMedia receiver
@@ -440,7 +369,7 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnComplet
             telephonyManager.listen(phoneStateListener, PhoneStateListener.LISTEN_NONE);
         }
 
-        removeNotification();
+        MediaController.removeNotification(this);
 
         //unregister BroadcastReceivers
         unregisterReceiver(becomingNoisyReceiver);
@@ -472,22 +401,18 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnComplet
             public void onPlay() {
                 super.onPlay();
                 resumeMedia();
-                buildNotification(PlaybackStatus.PLAYING);
             }
 
             @Override
             public void onPause() {
                 super.onPause();
                 pauseMedia();
-                buildNotification(PlaybackStatus.PAUSED);
             }
 
             @Override
             public void onSkipToNext() {
                 super.onSkipToNext();
                 skipToNext();
-                updateMetaData();
-                buildNotification(PlaybackStatus.PLAYING);
             }
 
             @Override
@@ -495,13 +420,13 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnComplet
                 super.onSkipToPrevious();
                 skipToPrevious();
                 updateMetaData();
-                buildNotification(PlaybackStatus.PLAYING);
+                MediaController.buildNotification(getApplicationContext(),activeAudio,PlaybackStatus.PLAYING);
             }
 
             @Override
             public void onStop() {
                 super.onStop();
-                removeNotification();
+                MediaController.removeNotification(getApplicationContext());
                 //Stop the service
                 stopSelf();
             }
@@ -523,7 +448,7 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnComplet
                 .putString(MediaMetadataCompat.METADATA_KEY_TITLE, activeAudio.getTitle())
                 .build());
     }
-    private void skipToNext() {
+    public void skipToNext() {
 
         if (audioIndex == audioList.size() - 1) {
             //if last in playlist
@@ -540,6 +465,8 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnComplet
         //reset mediaPlayer
         mediaPlayer.reset();
         initMediaPlayer();
+        updateMetaData();
+        MediaController.buildNotification(getApplicationContext(),activeAudio,PlaybackStatus.PLAYING);
     }
 
     private void skipToPrevious() {
@@ -548,33 +475,33 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnComplet
             //if first in playlist
             //set index to the last of audioList
             audioIndex = audioList.size() - 1;
-            activeAudio = audioList.get(audioIndex);
+            activeAudio = audioList.get(MainActivity.currentIndex);
         } else {
             //get previous in playlist
-            activeAudio = audioList.get(--audioIndex);
+            activeAudio = audioList.get(--MainActivity.currentIndex);
         }
-
         //Update stored index
-
         stopMedia();
         //reset mediaPlayer
         mediaPlayer.reset();
         initMediaPlayer();
+        updateMetaData();
+        MediaController.buildNotification(getApplicationContext(),activeAudio,PlaybackStatus.PLAYING);
     }
 
     private void handleIncomingActions(Intent playbackAction) {
         if (playbackAction == null || playbackAction.getAction() == null) return;
 
         String actionString = playbackAction.getAction();
-        if (actionString.equalsIgnoreCase(ACTION_PLAY)) {
+        if (actionString.equalsIgnoreCase(MediaController.ACTION_PLAY)) {
             transportControls.play();
-        } else if (actionString.equalsIgnoreCase(ACTION_PAUSE)) {
+        } else if (actionString.equalsIgnoreCase(MediaController.ACTION_PAUSE)) {
             transportControls.pause();
-        } else if (actionString.equalsIgnoreCase(ACTION_NEXT)) {
+        } else if (actionString.equalsIgnoreCase(MediaController.ACTION_NEXT)) {
             transportControls.skipToNext();
-        } else if (actionString.equalsIgnoreCase(ACTION_PREVIOUS)) {
+        } else if (actionString.equalsIgnoreCase(MediaController.ACTION_PREVIOUS)) {
             transportControls.skipToPrevious();
-        } else if (actionString.equalsIgnoreCase(ACTION_STOP)) {
+        } else if (actionString.equalsIgnoreCase(MediaController.ACTION_STOP)) {
             transportControls.stop();
         }
     }

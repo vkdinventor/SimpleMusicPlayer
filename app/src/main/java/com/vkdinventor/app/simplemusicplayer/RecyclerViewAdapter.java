@@ -13,6 +13,8 @@ import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.TextView;
 
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
 import java.util.Collections;
 import java.util.List;
 
@@ -74,8 +76,9 @@ public class RecyclerViewAdapter extends RecyclerView.Adapter<RecyclerViewAdapte
     @Override
     public void onBindViewHolder(ViewHolder holder, int position) {
         Audio audio = list.get(position);
-        //Glide.with(context).load(audio.getData()).into(holder.play_pause);
         holder.title.setText(list.get(position).getTitle());
+        Bitmap bitmap = Utils.getThumbnail(audio.getData());
+        holder.play_pause.setImageBitmap(bitmap);
     }
 
     @Override
